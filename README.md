@@ -1,5 +1,9 @@
 # Sahayak : Predictive Wellness System
 
+## 🚀 Live Demo
+
+![Sahayak Live](https://img.shields.io/badge/Try-Sahayak%20Live-00ff9c?style=for-the-badge&logo=streamlit&logoColor=white)
+
 Sahayak is a predictive wellness monitoring system that analyzes daily lifestyle signals to detect early mental and physical health risks. The system provides risk scoring, personalized recommendations, AI chat guidance, and automated alerting.
 
 This project is designed for students and elders to track wellness trends and identify early warning signs.
