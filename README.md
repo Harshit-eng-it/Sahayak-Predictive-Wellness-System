@@ -1,4 +1,12 @@
 # Sahayak : Predictive Wellness System
+# 🩺 Sahayak : Predictive Wellness System
+
+AI-powered early wellness prediction system for students & elders.  
+Track daily habits → Detect risk → Get smart guidance → Prevent burnout.
+
+Sleep • Stress • Fatigue • Hydration • Activity • Caffeine • Mental Risk • Physical Risk
+
+Built with Streamlit + Python + Predictive Risk Engine + AI Assistant
 
 ## 🚀 Live Demo
 
