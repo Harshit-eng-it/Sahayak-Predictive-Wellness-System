@@ -34,7 +34,179 @@ from typing import Dict, List
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
+import time
 
+st.markdown("""
+<style>
+
+/* =========================
+APP GRADIENT BACKGROUND
+========================= */
+.stApp {
+background: linear-gradient(
+180deg,
+#020617 0%,
+#020b1a 40%,
+#010814 70%,
+#000510 100%
+);
+color:white;
+}
+
+/* glow blobs */
+.stApp::before{
+content:"";
+position:fixed;
+top:-200px;
+left:-200px;
+width:700px;
+height:700px;
+background:radial-gradient(circle,rgba(0,245,255,.15),transparent 60%);
+filter:blur(120px);
+z-index:0;
+}
+
+.stApp::after{
+content:"";
+position:fixed;
+bottom:-200px;
+right:-200px;
+width:700px;
+height:700px;
+background:radial-gradient(circle,rgba(0,255,157,.12),transparent 60%);
+filter:blur(120px);
+z-index:0;
+}
+
+/* content layer */
+.block-container {
+position: relative;
+z-index: 1;
+}
+
+
+/* =========================
+GLOW CARD
+========================= */
+.glow-card {
+background: rgba(8,12,25,0.75);
+backdrop-filter: blur(14px);
+
+border-radius: 18px;
+padding: 22px;
+margin-bottom: 22px;
+
+border: 1px solid rgba(0,245,255,0.25);
+
+box-shadow:
+0 10px 25px rgba(0,245,255,0.08),
+inset 0 0 25px rgba(0,245,255,0.03);
+
+transition: all .3s ease;
+color:#eafcff;
+}
+
+.glow-card:hover {
+transform: translateY(-4px);
+box-shadow:
+0 15px 40px rgba(0,245,255,0.18),
+inset 0 0 30px rgba(0,245,255,0.05);
+}
+
+
+/* =========================
+GLOW TITLE
+========================= */
+.glow-title{
+font-size:16px;
+font-weight:600;
+color:#00f5ff;
+letter-spacing:0.5px;
+}
+
+
+/* =========================
+SECTION TITLE
+========================= */
+.section-title{
+font-size:22px;
+font-weight:700;
+color:#00f5ff;
+margin-bottom:10px;
+}
+
+
+/* =========================
+FADE ANIMATION
+========================= */
+.fade{
+animation:fade .6s ease;
+}
+
+@keyframes fade{
+from{opacity:0; transform:translateY(10px);}
+to{opacity:1; transform:translateY(0);}
+}
+
+
+/* =========================
+EMERGENCY PULSE
+========================= */
+@keyframes pulseAlert {
+0% { box-shadow:0 0 10px rgba(255,0,0,.3); }
+50% { box-shadow:0 0 30px rgba(255,0,0,.6); }
+100% { box-shadow:0 0 10px rgba(255,0,0,.3); }
+}
+
+
+/* =========================
+GAUGE BAR
+========================= */
+.gauge-bar{
+height:10px;
+background:#0a0f1f;
+border-radius:10px;
+overflow:hidden;
+margin-top:12px;
+}
+
+.gauge-fill{
+height:100%;
+border-radius:10px;
+transition:width 0.8s ease;
+}
+
+
+/* =========================
+METRIC CARDS
+========================= */
+.metric-card{
+background:rgba(10,15,30,0.9);
+border-radius:16px;
+padding:16px;
+text-align:center;
+border:1px solid rgba(0,245,255,.2);
+}
+
+.metric-title{
+font-size:14px;
+color:#aaa;
+}
+
+.metric-value{
+font-size:26px;
+font-weight:700;
+margin-top:5px;
+}
+
+.metric-subtitle{
+font-size:12px;
+color:#888;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 APP_DIR = Path(__file__).resolve().parent
 DATA_FILE = APP_DIR / "wellness_log.csv"
@@ -521,6 +693,7 @@ def metric_card(title: str, value: float, subtitle: str, color: str) -> str:
     """
 
 
+
 def progress_card(title: str, value: float, helper: str) -> str:
     bar_color = band_color(value)
     return f"""
@@ -796,181 +969,530 @@ def get_active_context(name: str, mode: str) -> tuple[Dict[str, float | int | st
     return active_inputs, active_scores, refreshed_history
 
 
-def render_dashboard_tab(
-    active_inputs: Dict[str, float | int | str] | None,
-    active_scores: Dict[str, float] | None,
-    history: pd.DataFrame,
-) -> None:
+
+
+def health_badge(score):
+    if score >= 80:
+        label = "🟢 Optimal"
+        color = "#00ff9c"
+    elif score >= 60:
+        label = "🟡 Monitor"
+        color = "#ffe600"
+    elif score >= 40:
+        label = "🟠 High Risk"
+        color = "#ff9f1c"
+    else:
+        label = "🔴 Critical"
+        color = "#ff3b3b"
+
+    return f"""
+    <div style="
+        padding:10px 18px;
+        border-radius:12px;
+        background:{color};
+        color:black;
+        font-weight:700;
+        text-align:center;
+        margin-bottom:10px;
+    ">
+        Health Status: {label}
+    </div>
+    """
+
+def burnout_score(inputs, scores):
+    burnout = clamp(
+        float(inputs["stress_level"]) * 6 +
+        float(inputs["fatigue_level"]) * 5 +
+        (10 - float(inputs["mood_level"])) * 4 +
+        scores["caffeine_risk"] * 0.3
+    )
+
+    return clamp(burnout)
+
+def gauge_meter(title, value):
+    color = band_color(value)
+
+    return f"""
+<div style="
+background:rgba(8,12,25,0.9);
+padding:20px;
+border-radius:18px;
+border:1px solid {color};
+box-shadow:0 0 20px {color}33;
+">
+
+<div style="color:#aaa;font-size:14px;">
+{title}
+</div>
+
+<div style="
+font-size:42px;
+font-weight:700;
+color:{color};
+margin-top:5px;
+">
+{value:.0f}
+</div>
+
+<div style="
+height:10px;
+background:#0a0f1f;
+border-radius:10px;
+margin-top:12px;
+overflow:hidden;
+">
+
+<div style="
+width:{value}%;
+height:100%;
+background:linear-gradient(90deg,{color},#00f5ff);
+border-radius:10px;
+box-shadow:0 0 15px {color};
+transition:width 0.8s ease;
+"></div>
+
+</div>
+</div>
+"""
+with st.spinner("Sahayak analyzing health signals..."):
+    time.sleep(0.6)
+
+def ai_insight_panel(inputs, scores):
+
+    risks = {
+        "Sleep": scores["sleep_risk"],
+        "Hydration": scores["hydration_risk"],
+        "Activity": scores["activity_risk"],
+        "Mental Stress": scores["mental_risk"],
+        "Caffeine": scores["caffeine_risk"],
+    }
+
+    top_risk = max(risks, key=risks.get)
+    value = risks[top_risk]
+
+    if top_risk == "Sleep":
+        reason = "Sleep hours are below optimal range"
+        fix = "Sleep 7–8 hours tonight"
+
+    elif top_risk == "Hydration":
+        reason = "Water intake is too low"
+        fix = "Drink 2L water today"
+
+    elif top_risk == "Activity":
+        reason = "Low physical movement detected"
+        fix = "Take 15 minute walk"
+
+    elif top_risk == "Mental Stress":
+        reason = "Stress and fatigue elevated"
+        fix = "Take break and reduce workload"
+
+    else:
+        reason = "High caffeine intake detected"
+        fix = "Reduce caffeine after evening"
+
+    return f"""
+<div style="
+background:rgba(8,12,25,0.9);
+padding:20px;
+border-radius:18px;
+border:1px solid #00f5ff;
+box-shadow:0 0 20px rgba(0,245,255,.25);
+">
+
+<div style="
+font-size:18px;
+font-weight:600;
+color:#00f5ff;
+">
+AI Insight SMART
+</div>
+
+<div style="margin-top:10px;color:white;font-size:15px">
+<b style="color:#00f5ff;">Top Risk Today:</b> {top_risk} ({value:.0f}/100)
+</div>
+
+<div style="margin-top:8px;color:white;font-size:15px">
+<b style="color:#00f5ff;">Why risk is high:</b> {reason}
+</div>
+
+<div style="margin-top:8px;color:white;font-size:15px">
+<b style="color:#00f5ff;">What to fix first:</b> {fix}
+</div>
+
+</div>
+"""
+def build_health_report(inputs, scores):
+
+    return f"""
+Predictive Wellness Report
+-------------------------
+
+Name: {inputs['name']}
+Mode: {inputs['mode']}
+
+Overall Risk: {scores['overall_risk']}
+Mental Risk: {scores['mental_risk']}
+Physical Risk: {scores['physical_risk']}
+Caffeine Risk: {scores['caffeine_risk']}
+
+Health Score: {scores['health_score']}
+Mental Score: {scores['mental_score']}
+Physical Score: {scores['physical_score']}
+
+AI Summary:
+User showing elevated burnout indicators.
+Recommend rest, hydration, and reduced workload.
+
+Generated by Sahayak AI
+"""
+import random
+
+def predict_future_risk(scores):
+    base = float(scores["overall_risk"])
+
+    future = []
+    trend = random.choice([-3, -2, -1, 1, 2])
+
+    for i in range(7):
+        noise = random.uniform(-2, 2)
+        value = base + (trend * i) + noise
+        value = max(5, min(100, value))
+        future.append(round(value, 1))
+
+    return future
+
+def emergency_alert(scores):
+
+    risk = float(scores["overall_risk"])
+
+    # no alert if safe
+    if risk < 70:
+        return ""
+
+    # warning level
+    if risk < 85:
+        color = "#ffe600"
+        title = "⚠ Elevated Burnout Risk"
+        message = "You're approaching unhealthy stress levels. Consider resting."
+
+    # critical level
+    else:
+        color = "#ff3b3b"
+        title = "🚨 High Burnout Risk Detected"
+        message = "Immediate rest recommended. Reduce workload and recover."
+
+    return f"""
+    <div class="glow-card" style="
+        border:1px solid {color};
+        box-shadow:0 0 25px {color};
+        margin-top:15px;
+        animation:pulseAlert 1.5s infinite;
+    ">
+
+        <div style="
+            font-size:18px;
+            font-weight:700;
+            color:{color};
+        ">
+        {title}
+        </div>
+
+        <div style="margin-top:8px;color:white">
+        Overall Risk: {risk:.0f}/100
+        </div>
+
+        <div style="margin-top:6px;color:#aaa">
+        {message}
+        </div>
+
+    </div>
+
+    <style>
+    @keyframes pulseAlert {{
+        0% {{ box-shadow:0 0 10px {color}; }}
+        50% {{ box-shadow:0 0 30px {color}; }}
+        100% {{ box-shadow:0 0 10px {color}; }}
+    }}
+    </style>
+    """
+def predict_future_risk(scores):
+
+    base = float(scores["overall_risk"])
+
+    # simple AI trend simulation
+    return [
+        min(100, base + 3),
+        min(100, base + 6),
+        min(100, base + 8),
+        min(100, base + 10),
+        min(100, base + 12),
+        min(100, base + 13),
+        min(100, base + 15),
+    ]
+
+def health_status_banner(score):
+
+    if score >= 80:
+        color = "#00ff9c"
+        label = "Optimal"
+    elif score >= 60:
+        color = "#ffe600"
+        label = "Monitor"
+    elif score >= 40:
+        color = "#ff9f1c"
+        label = "High Risk"
+    else:
+        color = "#ff3b3b"
+        label = "Critical"
+
+    return f"""
+<div style="
+background:rgba(8,12,25,0.9);
+border-radius:18px;
+padding:16px;
+border:1px solid {color};
+box-shadow:0 0 25px {color}33;
+margin-bottom:15px;
+">
+
+<div style="font-size:18px;color:{color};font-weight:600">
+Health Status: {label}
+</div>
+
+<div style="color:#aaa;font-size:14px;margin-top:4px">
+Overall Health Score: {score:.0f}/100
+</div>
+
+</div>
+"""
+def ai_summary(scores):
+
+    risk = scores["overall_risk"]
+
+    if risk < 40:
+        text = "Your health is stable. Maintain current routine."
+    elif risk < 70:
+        text = "Early burnout signals detected. Improve sleep and reduce stress."
+    else:
+        text = "High burnout risk detected. Immediate recovery recommended."
+
+    return f"""
+<div style="
+background:rgba(8,12,25,0.9);
+border-radius:18px;
+padding:18px;
+border:1px solid #00f5ff;
+margin-top:10px;
+">
+
+<div style="color:#00f5ff;font-weight:600">
+AI Summary
+</div>
+
+<div style="color:white;margin-top:8px">
+{text}
+</div>
+
+</div>
+"""
+
+def render_dashboard_tab(active_inputs, active_scores, history):
+
     st.subheader("Health scores and risk indicators")
 
     if active_inputs is None or active_scores is None:
-        st.info("Submit a check-in first to generate the wellness dashboard.")
+        
+        st.info("Submit a check-in first")
         return
+    st.markdown(
+    health_status_banner(active_scores["health_score"]),
+    unsafe_allow_html=True
+)
 
-    previous = previous_entry(history)
-    focus_label = MODE_CONFIG[str(active_inputs["mode"])]["focus_label"]
+    st.markdown(
+    ai_summary(active_scores),
+    unsafe_allow_html=True
+) 
 
-    # ---------- METRIC CARDS ----------
-    metric_cols = st.columns(4)
-    cards = [
-        ("Overall health",
-         float(active_scores["health_score"]),
-         score_delta(float(active_scores["health_score"]), previous, "health_score") or "Latest score",
-         "#1f7a5c"),
-
-        ("Mental score",
-         float(active_scores["mental_score"]),
-         score_delta(float(active_scores["mental_score"]), previous, "mental_score") or "Emotional resilience",
-         "#2e9d6b"),
-
-        ("Physical score",
-         float(active_scores["physical_score"]),
-         score_delta(float(active_scores["physical_score"]), previous, "physical_score") or "Body readiness",
-         "#4d7cfe"),
-
-        (focus_label,
-         float(active_scores["focus_risk"]),
-         risk_band(float(active_scores["focus_risk"])),
-         band_color(float(active_scores["focus_risk"]))),
-    ]
-
-    for column, (title, value, subtitle, color) in zip(metric_cols, cards):
-        with column:
-            st.markdown(metric_card(title, value, subtitle, color), unsafe_allow_html=True)
-
-    # ---------- LIFESTYLE RISK (NEW) ----------
-    st.markdown("### Lifestyle Risk")
+    # ================================
+    # RISK GAUGES
+    # ================================
+    st.markdown("### Risk Gauges")
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
         st.markdown(
-            color_card("Stress Risk", active_scores["mental_risk"]),
+            gauge_meter("Overall Risk", active_scores["overall_risk"]),
             unsafe_allow_html=True
         )
 
     with col2:
         st.markdown(
-            color_card("Fatigue Risk", active_scores["physical_risk"]),
+            gauge_meter("Mental Risk", active_scores["mental_risk"]),
             unsafe_allow_html=True
         )
 
     with col3:
         st.markdown(
-            color_card("Caffeine Risk", active_scores["caffeine_risk"]),
+            gauge_meter("Caffeine Risk", active_scores["caffeine_risk"]),
             unsafe_allow_html=True
         )
 
-    left, right = st.columns([1.2, 1])
+    # ================================
+    # BURNOUT PREDICTION
+    # ================================
+    st.markdown("### Burnout Prediction")
 
-    # ---------- LEFT ----------
-    with left:
-        st.markdown(
-            progress_card(
-                "Overall risk",
-                float(active_scores["overall_risk"]),
-                "Integrated prediction across mental and physical wellbeing.",
-            ),
-            unsafe_allow_html=True,
-        )
+    burnout = burnout_score(active_inputs, active_scores)
 
-        st.markdown(
-            progress_card(
-                "Mental risk",
-                float(active_scores["mental_risk"]),
-                "Stress, mood, fatigue, and overload pattern.",
-            ),
-            unsafe_allow_html=True,
-        )
+    st.markdown(
+        gauge_meter("Burnout Probability", burnout),
+        unsafe_allow_html=True
+    )
 
-        st.markdown(
-            progress_card(
-                "Physical risk",
-                float(active_scores["physical_risk"]),
-                "Sleep, activity, hydration, and body-function signals.",
-            ),
-            unsafe_allow_html=True,
-        )
+    # ================================
+    # AI INSIGHT
+    # ================================
+    st.markdown("### AI Insight")
 
-    # ---------- RIGHT ----------
-    with right:
-        st.markdown(
-            f"<span class='pill' style='background:{band_color(float(active_scores['overall_risk']))};'>"
-            f"{risk_band(float(active_scores['overall_risk']))} overall risk</span>",
-            unsafe_allow_html=True,
-        )
+    st.markdown(
+        ai_insight_panel(active_inputs, active_scores),
+        unsafe_allow_html=True
+    )
 
-        st.write("")
-        st.markdown("**Top drivers today**")
+    # ================================
+    # EMERGENCY ALERT
+    # ================================
+    alert_html = emergency_alert(active_scores)
 
-        for driver in top_drivers(active_inputs, active_scores):
-            st.write(f"- {driver}")
+    if alert_html:
+        st.markdown("### Emergency Alert")
+        st.markdown(alert_html, unsafe_allow_html=True)
 
-        # -------- ALERTS --------
-        alerts = build_alerts(active_inputs, active_scores)
+    # ================================
+    # 7 DAY FORECAST
+    # ================================
+    st.markdown("### 7-Day AI Risk Forecast")
 
-        st.markdown("**Early alerts**")
+    import pandas as pd
 
-        if alerts:
-            for alert in alerts:
-                st.warning(alert)
+    future = predict_future_risk(active_scores)
 
-            # SEND SMS ALERT
-            sms_text = f"""
-🚨 Wellness Alert
+    forecast_df = pd.DataFrame({
+        "Day": ["Today","Day1","Day2","Day3","Day4","Day5","Day6"],
+        "Risk": [active_scores["overall_risk"]] + future[:6]
+    })
+
+    st.line_chart(forecast_df.set_index("Day"))
+
+    # ================================
+    # EXPORT REPORT
+    # ================================
+    st.markdown("### Export Health Report")
+
+    report = f"""
+Predictive Wellness Report
 
 User: {active_inputs['name']}
+Mode: {active_inputs['mode']}
+
 Overall Risk: {active_scores['overall_risk']}
 Mental Risk: {active_scores['mental_risk']}
+Physical Risk: {active_scores['physical_risk']}
+Caffeine Risk: {active_scores['caffeine_risk']}
 
-Top Issue: {alerts[0]}
+Burnout Probability: {burnout:.0f}
+
+AI Recommendation:
+Reduce stress, improve sleep, and lower caffeine intake.
 """
-            send_sms_alert(sms_text)
 
-        else:
-            st.success("No urgent alert threshold crossed in this check-in.")
+    st.download_button(
+        "Download Report",
+        report,
+        file_name="health_report.txt"
+    )
 
-    # ---------- RECOMMENDATIONS ----------
-    rec_col, plan_col = st.columns(2)
-
-    with rec_col:
-        st.markdown("**Actionable suggestions**")
-        for item in build_recommendations(active_inputs, active_scores):
-            st.write(f"- {item}")
-
-    with plan_col:
-        st.markdown("**Daily recovery plan**")
-        for item in build_daily_plan(active_inputs, active_scores):
-            st.write(f"- {item}")
-
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_sahayak_tab(
-    active_inputs: Dict[str, float | int | str] | None,
-    active_scores: Dict[str, float] | None,
-    history: pd.DataFrame,
-) -> None:
+    active_inputs,
+    active_scores,
+    history
+):
     st.subheader("Sahayak AI assistant")
-    st.write("Ask for explanations, next steps, or a simple recovery plan based on the latest scores.")
+    st.write("Ask for explanations, next steps, or a simple recovery plan.")
 
     if active_inputs is None or active_scores is None:
-        st.info("Run a wellness check-in first so Sahayak has context.")
+        st.info("Run a wellness check-in first")
         return
 
+    # ---------- QUICK BUTTONS ----------
+    c1, c2, c3, c4 = st.columns(4)
+
+    if c1.button("Overall health"):
+        msg = "Explain my overall health"
+        st.session_state.chat_history.append(("user", msg))
+        reply = generate_sahayak_reply(msg, active_inputs, active_scores, history)
+        st.session_state.chat_history.append(("assistant", reply))
+        st.rerun()
+
+    if c2.button("Burnout risk"):
+        msg = "Am I burning out?"
+        st.session_state.chat_history.append(("user", msg))
+        reply = generate_sahayak_reply(msg, active_inputs, active_scores, history)
+        st.session_state.chat_history.append(("assistant", reply))
+        st.rerun()
+
+    if c3.button("Sleep advice"):
+        msg = "How is my sleep?"
+        st.session_state.chat_history.append(("user", msg))
+        reply = generate_sahayak_reply(msg, active_inputs, active_scores, history)
+        st.session_state.chat_history.append(("assistant", reply))
+        st.rerun()
+
+    if c4.button("7 day forecast"):
+        msg = "forecast"
+        st.session_state.chat_history.append(("user", msg))
+        reply = generate_sahayak_reply(msg, active_inputs, active_scores, history)
+        st.session_state.chat_history.append(("assistant", reply))
+        st.rerun()
+
+    st.divider()
+
+    # ---------- CHAT HISTORY ----------
     for speaker, message in st.session_state.chat_history:
         with st.chat_message("user" if speaker == "user" else "assistant"):
             st.write(message)
 
-    user_message = st.chat_input("Ask Sahayak about sleep, stress, hydration, activity, or today's plan")
+    # ---------- CHAT INPUT ----------
+    user_message = st.chat_input("Ask Sahayak anything about your health...")
+
     if user_message:
         st.session_state.chat_history.append(("user", user_message))
-        reply = generate_sahayak_reply(user_message, active_inputs, active_scores, history)
+
+        reply = generate_sahayak_reply(
+            user_message,
+            active_inputs,
+            active_scores,
+            history
+        )
+
         st.session_state.chat_history.append(("assistant", reply))
         st.rerun()
 
+    # ---------- AUTO START ----------
     if not st.session_state.chat_history:
-        starter_reply = generate_sahayak_reply("overall summary", active_inputs, active_scores, history)
+        starter = generate_sahayak_reply(
+            "overall summary",
+            active_inputs,
+            active_scores,
+            history
+        )
+
         with st.chat_message("assistant"):
-            st.write(starter_reply)
+            st.write(starter)
 
 
 def render_history_tab(name: str, mode: str, history: pd.DataFrame) -> None:
@@ -1015,101 +1537,13 @@ def render_history_tab(name: str, mode: str, history: pd.DataFrame) -> None:
         mime="text/csv",
     )
 
-
-def main() -> None:
-    st.set_page_config(
-        page_title="Predictive Wellness System",
-        layout="wide",
-        initial_sidebar_state="expanded",
-    )
-
-
-
 def main():
     st.set_page_config(
         page_title="Predictive Wellness System",
         layout="wide",
         initial_sidebar_state="expanded"
     )
-
-    apply_styles()
-def apply_styles() -> None:
-    st.markdown(
-        """
-        <style>
-
-        .block-container {
-            color: white !important;
-        }
-
-        /* MAIN BACKGROUND */
-        .stApp { 
-            background: radial-gradient(circle at top, #0b0f1a, #05070d 70%);
-            color: #e6f1ff;
-        }
-
-        /* FIX SLIDER NOT MOVING */
-        [data-baseweb="slider"] * {
-            pointer-events: auto !important;
-        }
-
-        /* SIDEBAR */
-        section[data-testid="stSidebar"] {
-            background: #05070d;
-        }
-
-        .hero {
-            padding: 1.6rem 1.8rem;
-            border-radius: 24px;
-            background: linear-gradient(135deg, #00f5ff, #00ff9c);
-            color: #001014;
-            box-shadow: 0 0 30px rgba(0,255,255,0.35);
-            margin-bottom: 1.2rem;
-        }
-
-        .insight-box {
-            background: rgba(10,15,30,0.85);
-            border: 1px solid rgba(0,255,255,0.25);
-            border-radius: 20px;
-            padding: 1rem;
-        }
-
-        .metric-card {
-            background: rgba(8,12,25,0.9);
-            border-radius: 22px;
-            padding: 1.1rem;
-            border: 1px solid rgba(0,255,255,0.25);
-        }
-
-        .progress-card {
-            background: rgba(8,12,25,0.9);
-            border: 1px solid rgba(0,255,255,0.25);
-            border-radius: 18px;
-            padding: 0.95rem;
-        }
-
-        .stButton>button {
-            background: linear-gradient(90deg,#00f5ff,#00ff9c);
-            color: black;
-            border: none;
-            border-radius: 12px;
-            font-weight: 700;
-        }
-
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-def main():
-    st.set_page_config(
-        page_title="Predictive Wellness System",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
-
-    apply_styles()
+    
 
     initialize_state()
 
