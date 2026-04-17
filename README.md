@@ -2,7 +2,7 @@
 ## 🚀 Live Demo
 
 <p align="center">
-<a href="https://sahayak-predictive-wellness-system-hsbwk6fm3wa464f829pejr.streamlit.app/">
+<a href="https://sahayak-predictive-wellness-system-jdboutynyxunvarla5g5q2.streamlit.app//">
 <img src="https://img.shields.io/badge/TRY-SAHAYAK%20LIVE-00ff9c?style=for-the-badge" />
 </a>
 </p>
